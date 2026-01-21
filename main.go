@@ -16,7 +16,7 @@ func main() {
 
 	// Handler function
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello World!")
+		fmt.Fprintf(w, "Hello World! (v0.0.2)")
 	})
 
 	// Health check endpoint
