@@ -2,7 +2,7 @@
 builder = "NIXPACKS"
 
 [build.nixpacksPlan.phases.build]
-cmds = ["go build -ldflags \"-X main.GitCommit=$(git rev-parse --short HEAD)\" -o out ."]
+cmds = ["go build -ldflags \"-X main.GitCommit=$RAILWAY_GIT_COMMIT_SHA\" -o out ."]
 
 [deploy]
 startCommand = "./out"
