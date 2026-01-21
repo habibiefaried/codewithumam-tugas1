@@ -67,10 +67,18 @@ Visit `http://localhost:8080` to see "Hello World!"
    - Value: Paste your Railway token from step 3
    - Click "Add secret"
 
-5. **Verify Railway Configuration:**
+5. **Verify Railway Configuration (CRITICAL):**
    - After linking, you should have a `.railway` directory in your project
    - This contains the project and service IDs needed for deployment
-   - Commit this directory to git (it's safe and necessary for GitHub Actions)
+   - **IMPORTANT:** You MUST commit this directory to git for GitHub Actions to work
+   - Without this directory, Railway CLI will prompt for service selection even with `--service` flag
+   - Check if it exists: `ls -la .railway` (should see config.json or similar)
+   - If missing, run `railway link` again locally, then commit:
+     ```bash
+     git add .railway
+     git commit -m "Add Railway service link"
+     git push
+     ```
 
 6. **Deploy:**
    - Push your code (including `.railway` directory) to the `master` branch
@@ -127,16 +135,15 @@ You can configure which region Railway deploys to:
 - Select your preferred region (e.g., `us-west`, `us-east`, `eu-west`, `ap-south`, etc.)
 - Save changes
 
-**Via Railway CLI:**
-```bash
-# View current region
-railway region
-
-# Set region (when deploying)
-railway up --region <region-name>
+**Via railway.toml (Recommended for Code as Config):**
+Add the region to your `railway.toml` file:
+```toml
+[deploy]
+region = "asia-southeast1"
 ```
+This ensures the region is version-controlled and applied consistently.
 
-**Note:** If you set the region via the dashboard, it will persist for all deployments. The CLI option only affects that specific deployment.
+**Note:** Setting the region in `railway.toml` is the recommended approach as it's version-controlled. The dashboard method also works and persists across deployments.
 
 ### Environment Variables
 
