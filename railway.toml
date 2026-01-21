@@ -1,9 +1,11 @@
 [build]
 builder = "NIXPACKS"
 
+[build.nixpacksPlan.phases.build]
+cmds = ["go build -ldflags \"-X main.GitCommit=$(git rev-parse --short HEAD)\" -o out ."]
+
 [deploy]
 startCommand = "./out"
 region = "asia-southeast1"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
-
