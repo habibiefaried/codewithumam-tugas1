@@ -1,0 +1,194 @@
+name: CI Tests
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: Run API Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Verify Go installation
+        run: go version
+
+      - name: Download dependencies
+        run: go mod download || echo "No go.mod found, skipping"
+
+      - name: Build application
+        run: go build -o api-server main.go
+
+      - name: Start server in background
+        run: |
+          ./api-server &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          echo "Server started with PID: $SERVER_PID"
+
+      - name: Wait for server to be ready
+        run: |
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/health > /dev/null; then
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Attempt $i: Server not ready yet..."
+            sleep 1
+          done
+          echo "Server failed to start"
+          exit 1
+
+      - name: Run API Tests
+        run: |
+          echo "========================================="
+          echo "Testing Category CRUD API"
+          echo "========================================="
+          
+          # Health Check
+          echo -e "\n1. Health Check"
+          curl -f http://localhost:8080/health || exit 1
+          
+          # Version Check
+          echo -e "\n\n2. Version Check"
+          curl -f http://localhost:8080/version || exit 1
+          
+          # Get all categories (empty)
+          echo -e "\n\n3. Get all categories (should be empty)"
+          RESPONSE=$(curl -s http://localhost:8080/categories)
+          echo $RESPONSE
+          if [ "$RESPONSE" != "[]" ] && [ "$RESPONSE" != "null" ]; then
+            echo "Expected empty array, got: $RESPONSE"
+            exit 1
+          fi
+          
+          # Create category 1
+          echo -e "\n\n4. Create category: Electronics"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/categories \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Electronics","description":"Electronic devices"}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "Expected 201, got: $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Create category 2
+          echo -e "\n\n5. Create category: Books"
+          curl -s -X POST http://localhost:8080/categories \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Books","description":"Physical and digital books"}'
+          
+          # Create category 3
+          echo -e "\n\n6. Create category: Clothing"
+          curl -s -X POST http://localhost:8080/categories \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Clothing","description":"Apparel items"}'
+          
+          # Get all categories
+          echo -e "\n\n7. Get all categories (should have 3)"
+          RESPONSE=$(curl -s http://localhost:8080/categories)
+          echo $RESPONSE
+          COUNT=$(echo $RESPONSE | grep -o '"id"' | wc -l)
+          if [ "$COUNT" != "3" ]; then
+            echo "Expected 3 categories, got: $COUNT"
+            exit 1
+          fi
+          
+          # Get by ID
+          echo -e "\n\n8. Get category by ID: 1"
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/categories/1)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Expected 200, got: $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Update category
+          echo -e "\n\n9. Update category ID: 1"
+          RESPONSE=$(curl -s -X PUT http://localhost:8080/categories/1 \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Electronics & Tech","description":"Updated description"}')
+          echo $RESPONSE
+          if ! echo $RESPONSE | grep -q "Electronics & Tech"; then
+            echo "Update failed"
+            exit 1
+          fi
+          
+          # Delete category
+          echo -e "\n\n10. Delete category ID: 2"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE http://localhost:8080/categories/2)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "204" ]; then
+            echo "Expected 204, got: $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Verify deletion
+          echo -e "\n\n11. Verify category 2 is deleted (should get 404)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/categories/2)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "404" ]; then
+            echo "Expected 404, got: $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Test validation - empty name
+          echo -e "\n\n12. Test validation: empty name (should fail)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/categories \
+            -H "Content-Type: application/json" \
+            -d '{"name":"","description":"Should fail"}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "400" ]; then
+            echo "Expected 400, got: $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Test invalid ID
+          echo -e "\n\n13. Test invalid ID (should fail)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/categories/abc)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "400" ]; then
+            echo "Expected 400, got: $HTTP_CODE"
+            exit 1
+          fi
+          
+          echo -e "\n\n========================================="
+          echo "✅ All tests passed!"
+          echo "========================================="
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ ! -z "$SERVER_PID" ]; then
+            kill $SERVER_PID || true
+          fi
+          pkill -f api-server || true
+
+      - name: Show test results
+        if: always()
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ Tests PASSED"
+          else
+            echo "❌ Tests FAILED"
+            exit 1
+          fi
