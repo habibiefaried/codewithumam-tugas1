@@ -1,15 +1,17 @@
 # Category CRUD API
 
-A simple REST API for managing categories with in-memory storage built with Go.
+A REST API for managing categories with PostgreSQL database backend built with Go.
 
 ![CI Tests](https://github.com/habibiefaried/codewithumam-tugas1/workflows/CI%20Tests/badge.svg)
 
 ## Features
 
 - ✅ Full CRUD operations for categories
-- ✅ In-memory storage (no database required)
-- ✅ Thread-safe with RWMutex
-- ✅ RESTful API design
+- ✅ PostgreSQL database backend
+- ✅ Configuration from `secrets.yml` or environment variables
+- ✅ Database migrations with `CREATE IF NOT EXISTS`
+- ✅ Comprehensive unit tests for database queries
+- ✅ RESTful API design with proper separation of concerns
 - ✅ JSON request/response
 - ✅ Automated CI tests
 - ✅ Deployed on Railway
@@ -23,6 +25,7 @@ A simple REST API for managing categories with in-memory storage built with Go.
 ### Prerequisites
 
 - Go 1.22 or higher
+- PostgreSQL 12 or higher
 
 ### Installation
 
@@ -32,12 +35,32 @@ git clone https://github.com/habibiefaried/codewithumam-tugas1
 cd codewithumam-tugas1
 ```
 
-2. Run the server
+2. Download dependencies
+```bash
+go mod download
+```
+
+3. Setup configuration - Copy the example file and update with your database credentials:
+```bash
+cp secrets.yml.example secrets.yml
+```
+
+Edit `secrets.yml` with your database details:
+```yaml
+db_url: localhost
+db_port: 5432
+db_name: your_database
+db_user: your_user
+db_password: your_password
+port: 8080
+```
+
+4. Run the server
 ```bash
 go run main.go
 ```
 
-The server will start on port 8080 (or the port specified in `PORT` environment variable).
+The server will automatically create the `category` table if it doesn't exist.
 
 ### Build
 
@@ -318,15 +341,49 @@ The API returns appropriate HTTP status codes:
 
 ## Configuration
 
-### Environment Variables
+### Environment Variables & secrets.yml
 
-- `PORT` - Server port (default: 8080)
-- `GitCommit` - Build-time git commit hash
+The application supports two methods of configuration in this priority order:
 
-Example:
+1. **`secrets.yml`** (local file, for development) - Loaded first if it exists
+2. **Environment Variables** - Used as fallback if not in `secrets.yml`
+3. **Default Values** - Used if neither file nor environment variable is set
+
+#### Supported Configuration Keys
+
+| Key | YAML Key | Env Var | Default | Description |
+|-----|----------|---------|---------|-------------|
+| Database URL | `db_url` | `DB_URL` | `localhost` | PostgreSQL server hostname/IP |
+| Database Port | `db_port` | `DB_PORT` | `5432` | PostgreSQL server port |
+| Database Name | `db_name` | `DB_NAME` | `postgres` | Database name |
+| Database User | `db_user` | `DB_USER` | `postgres` | Database user |
+| Database Password | `db_password` | `DB_PASSWORD` | `postgres` | Database password |
+| Server Port | `port` | `PORT` | `8080` | HTTP server port |
+
+#### Example: Using Environment Variables
+
 ```bash
-PORT=3000 go run main.go
+DB_URL=db.example.com \
+DB_PORT=5432 \
+DB_NAME=mydb \
+DB_USER=admin \
+DB_PASSWORD=secret123 \
+PORT=8080 \
+go run main.go
 ```
+
+#### Example: Using secrets.yml
+
+```yaml
+db_url: db.example.com
+db_port: 5432
+db_name: mydb
+db_user: admin
+db_password: secret123
+port: 8080
+```
+
+**Note:** `secrets.yml` is in `.gitignore` to prevent committing sensitive data. Always use `secrets.yml.example` as a template.
 
 ---
 
@@ -334,36 +391,71 @@ PORT=3000 go run main.go
 
 ### Running Tests
 
-The project includes automated tests via GitHub Actions. To run manually:
+Run unit tests for the database queries:
 
 ```bash
-# Start the server
-go run main.go
+# First, ensure secrets.yml exists with database credentials
+# (copy from secrets.yml.example if it doesn't exist)
+cp secrets.yml.example secrets.yml
+# Then edit secrets.yml with your actual database credentials
 
-# In another terminal, run the test script
-chmod +x test_api.sh
-./test_api.sh
+# Run tests for database package
+go test ./database -v
+
+# Run all tests
+go test ./... -v
+
+# Run tests with coverage
+go test ./... -v -cover
 ```
+
+**Important:** Tests require `secrets.yml` to exist in the project root directory with valid database credentials. If `secrets.yml` is missing, tests will fail with an error message.
+
+**Note:** Tests use a separate `category_test` table that is automatically created and cleaned up.
 
 ### Project Structure
 
 ```
 .
-├── .github/
-│   └── workflows/
-│       └── ci.yml          # GitHub Actions CI configuration
-├── main.go                 # Main application code
+├── main.go                 # Application entry point
+├── config/
+│   └── config.go          # Configuration management (secrets.yml + env vars)
+├── api/
+│   └── categories.go      # HTTP route handlers for category endpoints
+├── database/
+│   ├── model.go           # Category data model
+│   ├── migrations.go      # Database schema creation
+│   ├── queries.go         # Category CRUD operations
+│   └── database_test.go   # Database query unit tests
+├── secrets.yml.example    # Configuration template
 └── README.md              # This file
 ```
+
+#### Folder Responsibilities
+
+**`api/`** - HTTP layer
+- Handles incoming HTTP requests
+- Validates request data
+- Calls database functions
+- Returns HTTP responses
+
+**`database/`** - Data layer
+- Defines data models
+- Manages database schema (migrations)
+- Implements CRUD queries
+- Includes unit tests
 
 ---
 
 ## Technical Details
 
-- **Storage:** In-memory HashMap (`map[int]Category`)
-- **Concurrency:** Thread-safe using `sync.RWMutex`
-- **ID Generation:** Auto-incrementing integer
-- **Time Complexity:** O(1) for all operations
+- **Backend:** Go 1.22+
+- **Database:** PostgreSQL
+- **Storage:** Persistent PostgreSQL database
+- **Migrations:** Automatic table creation with `CREATE IF NOT EXISTS`
+- **Testing:** Go `testing` package with database test fixtures
+- **Configuration:** YAML-based (`secrets.yml`) with environment variable fallback
+- **Time Complexity:** O(1) for all database operations (indexed by primary key)
 - **Deployment:** Railway (https://railway.app)
 
 ---

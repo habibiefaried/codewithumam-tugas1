@@ -10,8 +10,23 @@ on:
 
 jobs:
   test:
-    name: Run API Tests
+    name: Run Unit and API Tests
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass123
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     
     steps:
       - name: Checkout code
@@ -27,10 +42,26 @@ jobs:
         run: go version
 
       - name: Download dependencies
-        run: go mod download || echo "No go.mod found, skipping"
+        run: go mod download
+
+      - name: Create secrets.yml for tests
+        run: |
+          cat > secrets.yml << 'EOF'
+          db_url: localhost
+          db_port: 5432
+          db_name: testdb
+          db_user: testuser
+          db_password: testpass123
+          port: 8080
+          EOF
+          echo "secrets.yml created successfully"
+          cat secrets.yml
 
       - name: Build application
-        run: go build -o api-server main.go
+        run: |
+          go build -o api-server main.go
+          # Copy secrets.yml to executable directory
+          cp secrets.yml .
 
       - name: Start server in background
         run: |
@@ -53,10 +84,10 @@ jobs:
           echo "Server failed to start"
           exit 1
 
-      - name: Run API Tests
+      - name: Run API Integration Tests
         run: |
           echo "========================================="
-          echo "Testing Category CRUD API"
+          echo "Running API Integration Tests"
           echo "========================================="
           
           # Health Check
