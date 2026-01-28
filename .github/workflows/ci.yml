@@ -168,46 +168,8 @@ jobs:
             exit 1
           fi
           
-          # Delete category
-          echo -e "\n\n10. Delete category ID: 2"
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE http://localhost:8080/categories/2)
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          if [ "$HTTP_CODE" != "204" ]; then
-            echo "Expected 204, got: $HTTP_CODE"
-            exit 1
-          fi
-          
-          # Verify deletion
-          echo -e "\n\n11. Verify category 2 is deleted (should get 404)"
-          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/categories/2)
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          if [ "$HTTP_CODE" != "404" ]; then
-            echo "Expected 404, got: $HTTP_CODE"
-            exit 1
-          fi
-          
-          # Test validation - empty name
-          echo -e "\n\n12. Test validation: empty name (should fail)"
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/categories \
-            -H "Content-Type: application/json" \
-            -d '{"name":"","description":"Should fail"}')
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          if [ "$HTTP_CODE" != "400" ]; then
-            echo "Expected 400, got: $HTTP_CODE"
-            exit 1
-          fi
-          
-          # Test invalid ID
-          echo -e "\n\n13. Test invalid ID (should fail)"
-          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/categories/abc)
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          if [ "$HTTP_CODE" != "400" ]; then
-            echo "Expected 400, got: $HTTP_CODE"
-            exit 1
-          fi
-
           # Product endpoints (CRUD) - ensure category relationship is present
-          echo -e "\n\n14. Product: Create product linked to category 1"
+          echo -e "\n\n10. Product: Create product linked to category 1"
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/products \
             -H "Content-Type: application/json" \
             -d '{"name":"Phone","price":299,"stock":10,"category_id":1}')
@@ -220,12 +182,20 @@ jobs:
           fi
 
           # Create another product
-          curl -s -X POST http://localhost:8080/products \
+          echo -e "\n\n11. Product: Create another product linked to category 2"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/products \
             -H "Content-Type: application/json" \
-            -d '{"name":"Book","price":20,"stock":50,"category_id":2}'
+            -d '{"name":"Book","price":20,"stock":50,"category_id":2}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "Expected 201 for product create, got: $HTTP_CODE"
+            exit 1
+          fi
 
           # Get all products (should have at least 2)
-          echo -e "\n\n15. Get all products"
+          echo -e "\n\n12. Get all products"
           RESPONSE=$(curl -s http://localhost:8080/products)
           echo $RESPONSE
           COUNT=$(echo $RESPONSE | grep -o '"id"' | wc -l)
@@ -235,7 +205,7 @@ jobs:
           fi
 
           # Get product by ID and verify category fields
-          echo -e "\n\n16. Get product by ID: 1 and verify category info"
+          echo -e "\n\n13. Get product by ID: 1 and verify category info"
           RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/products/1)
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
@@ -250,7 +220,7 @@ jobs:
           fi
 
           # Update product
-          echo -e "\n\n17. Update product ID: 1"
+          echo -e "\n\n14. Update product ID: 1"
           RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT http://localhost:8080/products/1 \
             -H "Content-Type: application/json" \
             -d '{"name":"Smartphone","price":399,"stock":5,"category_id":1}')
@@ -263,11 +233,49 @@ jobs:
           fi
 
           # Delete product
-          echo -e "\n\n18. Delete product ID: 2"
+          echo -e "\n\n15. Delete product ID: 2"
           RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE http://localhost:8080/products/2)
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           if [ "$HTTP_CODE" != "204" ]; then
             echo "Expected 204 for product delete, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Test validation - empty name
+          echo -e "\n\n16. Test validation: empty name (should fail)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/categories \
+            -H "Content-Type: application/json" \
+            -d '{"name":"","description":"Should fail"}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "400" ]; then
+            echo "Expected 400, got: $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Test invalid ID
+          echo -e "\n\n17. Test invalid ID (should fail)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/categories/abc)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "400" ]; then
+            echo "Expected 400, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Delete category
+          echo -e "\n\n18. Delete category ID: 2"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE http://localhost:8080/categories/2)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "204" ]; then
+            echo "Expected 204, got: $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Verify deletion
+          echo -e "\n\n19. Verify category 2 is deleted (should get 404)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/categories/2)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "404" ]; then
+            echo "Expected 404, got: $HTTP_CODE"
             exit 1
           fi
 
