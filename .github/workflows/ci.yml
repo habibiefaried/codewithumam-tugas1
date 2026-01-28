@@ -207,7 +207,72 @@ jobs:
             echo "Expected 400, got: $HTTP_CODE"
             exit 1
           fi
-          
+
+          # Product endpoints (CRUD) - ensure category relationship is present
+          echo -e "\n\n14. Product: Create product linked to category 1"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/products \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Phone","price":299,"stock":10,"category_id":1}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "Expected 201 for product create, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Create another product
+          curl -s -X POST http://localhost:8080/products \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Book","price":20,"stock":50,"category_id":2}'
+
+          # Get all products (should have at least 2)
+          echo -e "\n\n15. Get all products"
+          RESPONSE=$(curl -s http://localhost:8080/products)
+          echo $RESPONSE
+          COUNT=$(echo $RESPONSE | grep -o '"id"' | wc -l)
+          if [ "$COUNT" -lt 2 ]; then
+            echo "Expected at least 2 products, got: $COUNT"
+            exit 1
+          fi
+
+          # Get product by ID and verify category fields
+          echo -e "\n\n16. Get product by ID: 1 and verify category info"
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/products/1)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Expected 200 for product get, got: $HTTP_CODE"
+            exit 1
+          fi
+          if ! echo $BODY | grep -q "category_name"; then
+            echo "Expected category_name in product response"
+            exit 1
+          fi
+
+          # Update product
+          echo -e "\n\n17. Update product ID: 1"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT http://localhost:8080/products/1 \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Smartphone","price":399,"stock":5,"category_id":1}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Expected 200 for product update, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Delete product
+          echo -e "\n\n18. Delete product ID: 2"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE http://localhost:8080/products/2)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "204" ]; then
+            echo "Expected 204 for product delete, got: $HTTP_CODE"
+            exit 1
+          fi
+
           echo -e "\n\n========================================="
           echo "✅ All tests passed!"
           echo "========================================="

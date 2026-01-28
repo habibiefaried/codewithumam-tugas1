@@ -51,12 +51,22 @@ func main() {
 	// Initialize categories service
 	categories := api.NewCategories(db, "category")
 
+	// Initialize products service
+	products := api.NewProducts(db, "product")
+
 	// Category routes
 	http.HandleFunc("GET /categories", categories.GetAll)
 	http.HandleFunc("GET /categories/{id}", categories.GetByID)
 	http.HandleFunc("POST /categories", categories.Create)
 	http.HandleFunc("PUT /categories/{id}", categories.Update)
 	http.HandleFunc("DELETE /categories/{id}", categories.Delete)
+
+	// Product routes
+	http.HandleFunc("GET /products", products.GetAll)
+	http.HandleFunc("GET /products/{id}", products.GetByID)
+	http.HandleFunc("POST /products", products.Create)
+	http.HandleFunc("PUT /products/{id}", products.Update)
+	http.HandleFunc("DELETE /products/{id}", products.Delete)
 
 	// Original endpoints
 	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
