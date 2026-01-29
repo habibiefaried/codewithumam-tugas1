@@ -13,62 +13,54 @@
 9. **Category-Product Relationship** - JOIN queries return category info
 10. **Concurrent Operations** - Multiple creates, updates, deletes
 
-## Missing Edge Cases ❌
+## Fixed Edge Cases ✅
 
-### 1. **Negative or Zero Values**
+### 1. **Negative or Zero Values** ✅ FIXED
 - **What:** Product price/stock with negative or zero values
-- **Current:** No validation, accepts any integer
-- **Impact:** Could create products with -$100 or 0 stock
-- **Fix:** Add validation: `price > 0` and `stock >= 0`
+- **Status:** NOW VALIDATED
+- **Implementation:** `price > 0` and `stock >= 0` validation in API
 ```bash
 # Test case
 curl -X POST http://localhost:8080/products \
   -H "Content-Type: application/json" \
   -d '{"name":"Bad Product","price":-50,"stock":-10,"category_id":1}'
-# Expected: 400 Bad Request
-# Actual: 201 Created (BUG)
+# Returns: 400 Bad Request ✅
 ```
 
-### 2. **Non-existent Category ID in Product Creation**
+### 2. **Non-existent Category ID in Product Creation** ✅ FIXED
 - **What:** Creating product with `category_id` that doesn't exist
-- **Current:** Creates product successfully (silently fails to JOIN)
-- **Impact:** Orphaned products with no category info
-- **Fix:** Add foreign key constraint validation
+- **Status:** NOW VALIDATED
+- **Implementation:** `database.GetByID()` check before creation in API
 ```bash
 # Test case
 curl -X POST http://localhost:8080/products \
   -H "Content-Type: application/json" \
   -d '{"name":"Orphan","price":100,"stock":5,"category_id":9999}'
-# Expected: 400 Bad Request (invalid category)
-# Actual: 201 Created (BUG)
+# Returns: 400 Bad Request (Category does not exist) ✅
 ```
 
-### 3. **Whitespace-Only Names**
+### 3. **Whitespace-Only Names** ✅ FIXED
 - **What:** Names with only spaces: `"   "`
-- **Current:** Accepts them (validation only checks `== ""`)
-- **Impact:** Creates confusing resources
-- **Fix:** Trim and validate: `strings.TrimSpace(name) == ""`
+- **Status:** NOW VALIDATED
+- **Implementation:** `strings.TrimSpace()` + validation in API
 ```bash
 # Test case
 curl -X POST http://localhost:8080/categories \
   -H "Content-Type: application/json" \
   -d '{"name":"   ","description":"spaces only"}'
-# Expected: 400 Bad Request
-# Actual: 201 Created (BUG)
+# Returns: 400 Bad Request (Name is required) ✅
 ```
 
-### 4. **Very Long Names/Descriptions**
+### 4. **Very Long Names/Descriptions** ✅ FIXED
 - **What:** Extremely long strings (e.g., 10MB text)
-- **Current:** No length limits
-- **Impact:** Database bloat, performance issues
-- **Fix:** Add max length validation (e.g., 255 for name, 5000 for description)
+- **Status:** NOW VALIDATED
+- **Implementation:** `maxNameLength=255`, `maxDescriptionLength=5000` in API
 ```bash
 # Test case with 1000+ character name
 curl -X POST http://localhost:8080/categories \
   -H "Content-Type: application/json" \
   -d '{"name":"'$(printf 'a%.0s' {1..1000})'","description":"test"}'
-# Expected: 400 Bad Request (name too long)
-# Actual: 201 Created (BUG)
+# Returns: 400 Bad Request (Name must be 255 characters or less) ✅
 ```
 
 ### 5. **Special Characters in Names**
@@ -182,40 +174,50 @@ curl -X POST http://localhost:8080/products \
 - **Impact:** None
 - **Note:** Already working correctly
 
-### 15. **Update Product with Non-existent Category**
+### 15. **Update Product with Non-existent Category** ✅ FIXED
 - **What:** Updating product to reference deleted category
-- **Current:** Probably succeeds (no FK check on update)
-- **Impact:** Orphaned products
-- **Fix:** Add FK validation on update
+- **Status:** NOW VALIDATED
+- **Implementation:** `database.GetByID()` check before update in API
 ```bash
 curl -X PUT http://localhost:8080/products/1 \
   -H "Content-Type: application/json" \
   -d '{"name":"Updated","price":100,"stock":5,"category_id":9999}'
-# Expected: 400 Bad Request (invalid category)
-# Actual: 200 OK (BUG)
+# Returns: 400 Bad Request (Category does not exist) ✅
 ```
 
 ---
 
-## Priority Fixes
+## Priority Fixes Status
 
-| Priority | Issue | Impact | Effort |
+| Priority | Issue | Status | Implementation |
 |----------|-------|--------|--------|
-| **HIGH** | Negative prices/stock | Data integrity | Low |
-| **HIGH** | Non-existent category_id in product | Data integrity | Low |
-| **MEDIUM** | Whitespace-only names | UX/Data quality | Low |
-| **MEDIUM** | Missing field validation | Data integrity | Low |
-| **MEDIUM** | Very long strings | Performance | Low |
-| **LOW** | Duplicate names | Documentation | None |
-| **LOW** | Special characters | Security (already safe) | Low |
-| **LOW** | Concurrent updates | Consistency | High |
+| **HIGH** | Negative prices/stock | ✅ FIXED | API validation |
+| **HIGH** | Non-existent category_id in product | ✅ FIXED | FK check |
+| **MEDIUM** | Whitespace-only names | ✅ FIXED | TrimSpace + validate |
+| **MEDIUM** | Missing field validation | ⚠️ PARTIAL | Basic validation |
+| **MEDIUM** | Very long strings | ✅ FIXED | Length limits |
+| **LOW** | Duplicate names | 📋 DOCUMENTED | No constraint |
+| **LOW** | Special characters | ✅ SAFE | Parameterized queries |
+| **LOW** | Concurrent updates | 🚀 FUTURE | Not implemented |
 
 ---
 
-## Recommendations
+## Implementation Summary
 
-1. ✅ **Add input validation** for negative/zero prices and whitespace
-2. ✅ **Add FK validation** when creating/updating products
-3. ✅ **Add length limits** to name/description fields
-4. ⚠️ **Document** expected behavior for duplicates and NULL values
-5. 🚀 **Consider** optimistic locking for concurrent updates (future enhancement)
+### ✅ Completed (6/8 HIGH/MEDIUM priorities)
+1. **Input Validation** - Negative/zero prices, whitespace names all validated
+2. **FK Validation** - Product creation/update validates category existence
+3. **Length Limits** - Names (255 chars), descriptions (5000 chars) enforced
+4. **Whitespace Trimming** - All inputs trimmed before validation
+5. **Unit Tests** - 17 comprehensive tests for categories and products
+6. **CI/CD Tests** - Integration tests + 9 edge case tests in pipeline
+
+### ⚠️ Remaining (2/8 priorities)
+1. **NULL Values** - Handled via JSON unmarshaling (implicit)
+2. **Duplicate Names** - Allowed by design (no unique constraint)
+
+### 🚀 Future Enhancements
+1. **Optimistic Locking** - Version-based conflict detection
+2. **Detailed Error Messages** - Specific JSON parsing errors
+3. **Rate Limiting** - DoS prevention
+4. **Audit Logging** - Change tracking
