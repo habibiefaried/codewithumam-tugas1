@@ -70,6 +70,27 @@ func TestCheckoutSuccess(t *testing.T) {
 	}
 }
 
+func TestCheckoutWithoutCategory(t *testing.T) {
+	db := setupProductTestDB(t)
+	defer teardownProductTestDB(t, db)
+
+	prod, err := CreateProduct(db, "product_test", "category_test", "NoCatItem", 100, 5, 0)
+	if err != nil {
+		t.Fatalf("Failed to create product: %v", err)
+	}
+
+	trx, err := Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: prod.ID, Quantity: 1}})
+	if err != nil {
+		t.Fatalf("Checkout failed: %v", err)
+	}
+	if len(trx.Details) != 1 {
+		t.Fatalf("Expected 1 detail, got %d", len(trx.Details))
+	}
+	if trx.Details[0].ProductDesc != "" {
+		t.Errorf("Expected empty product description, got %s", trx.Details[0].ProductDesc)
+	}
+}
+
 func TestCheckoutInsufficientStock(t *testing.T) {
 	db := setupProductTestDB(t)
 	defer teardownProductTestDB(t, db)

@@ -63,7 +63,7 @@ func Checkout(db *sql.DB, productTable, categoryTable, transactionTable, transac
 		_ = tx.Rollback()
 	}
 
-	getProductQuery := fmt.Sprintf("SELECT p.id, p.name, p.price, p.stock, COALESCE(c.description, '') FROM %s p LEFT JOIN %s c ON p.category_id = c.id WHERE p.id = $1 FOR UPDATE", productTable, categoryTable)
+	getProductQuery := fmt.Sprintf("SELECT p.id, p.name, p.price, p.stock, COALESCE(c.description, '') FROM %s p LEFT JOIN %s c ON p.category_id = c.id WHERE p.id = $1 FOR UPDATE OF p", productTable, categoryTable)
 	updateStockQuery := fmt.Sprintf("UPDATE %s SET stock = $1 WHERE id = $2", productTable)
 
 	var details []TransactionDetail
