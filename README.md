@@ -848,6 +848,14 @@ go test ./... -v -cover
 
 **Note:** Tests use separate `category_test` and `product_test` tables that are automatically created and cleaned up.
 
+### Reset Database (Drop & Recreate)
+
+Run the reset tool to drop all tables and recreate them using migrations:
+
+```bash
+go run ./cmd/reset-db
+```
+
 ### Project Structure
 
 ```

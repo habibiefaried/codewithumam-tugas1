@@ -242,6 +242,7 @@ jobs:
           echo $BODY
           if [ "$HTTP_CODE" != "201" ]; then
             echo "Expected 201 for checkout, got: $HTTP_CODE"
+            echo "Response body: $BODY"
             exit 1
           fi
           if ! echo $BODY | grep -q '"total_amount"'; then
