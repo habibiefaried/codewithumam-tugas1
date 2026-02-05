@@ -340,6 +340,66 @@ jobs:
             exit 1
           fi
 
+          # Scenario: admin updates price between checkouts
+          echo -e "\n\n14j. Scenario: admin updates price between checkouts"
+          # Create a new product for scenario
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/products \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Milk","price":100,"stock":10,"category_id":1}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "Expected 201 for product create, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # First checkout (price 100)
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/checkout \
+            -H "Content-Type: application/json" \
+            -d '{"items":[{"product_id":3,"quantity":2}]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "Expected 201 for checkout, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Admin updates price
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT http://localhost:8080/products/3 \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Milk","price":150,"stock":8,"category_id":1}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Expected 200 for product update, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Second checkout (price 150)
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/checkout \
+            -H "Content-Type: application/json" \
+            -d '{"items":[{"product_id":3,"quantity":1}]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "Expected 201 for checkout, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Report should still succeed after admin changes
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/report/hari-ini)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Expected 200 for report today, got: $HTTP_CODE"
+            exit 1
+          fi
+
           # Delete product (should succeed even if referenced in transaction detail)
           echo -e "\n\n15. Delete product ID: 2"
           RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE http://localhost:8080/products/2)
