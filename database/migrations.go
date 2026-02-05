@@ -58,6 +58,53 @@ func Migrate(db *sql.DB) error {
 		return fmt.Errorf("failed to create product indexes: %w", err)
 	}
 
+	// Create transaction table
+	createTransactionSQL := `
+	CREATE TABLE IF NOT EXISTS "transaction" (
+		id SERIAL PRIMARY KEY,
+		total_amount INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	);
+	`
+
+	_, err = db.Exec(createTransactionSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create transaction table: %w", err)
+	}
+
+	// Create transaction_detail table
+	createTransactionDetailSQL := `
+	CREATE TABLE IF NOT EXISTS transaction_detail (
+		id SERIAL PRIMARY KEY,
+		transaction_id INTEGER NOT NULL REFERENCES "transaction"(id) ON DELETE CASCADE,
+		product_id INTEGER NOT NULL REFERENCES product(id),
+		product_name VARCHAR(255) NOT NULL,
+		quantity INTEGER NOT NULL,
+		subtotal INTEGER NOT NULL
+	);
+	`
+
+	_, err = db.Exec(createTransactionDetailSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create transaction_detail table: %w", err)
+	}
+
+	// Create transaction indexes
+	createTransactionIndexSQL := `
+	CREATE INDEX IF NOT EXISTS idx_transaction_id ON "transaction"(id);
+	CREATE INDEX IF NOT EXISTS idx_transaction_created_at ON "transaction"(created_at);
+	CREATE INDEX IF NOT EXISTS idx_transaction_created_at_id ON "transaction"(created_at, id);
+	CREATE INDEX IF NOT EXISTS idx_transaction_detail_id ON transaction_detail(id);
+	CREATE INDEX IF NOT EXISTS idx_transaction_detail_transaction_id ON transaction_detail(transaction_id);
+	CREATE INDEX IF NOT EXISTS idx_transaction_detail_transaction_product_name ON transaction_detail(transaction_id, product_name);
+	CREATE INDEX IF NOT EXISTS idx_transaction_detail_product_id ON transaction_detail(product_id);
+	`
+
+	_, err = db.Exec(createTransactionIndexSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create transaction indexes: %w", err)
+	}
+
 	return nil
 }
 
@@ -114,12 +161,59 @@ func MigrateTest(db *sql.DB) error {
 		return fmt.Errorf("failed to create product_test indexes: %w", err)
 	}
 
+	// Create transaction_test table
+	createTransactionTestSQL := `
+	CREATE TABLE IF NOT EXISTS transaction_test (
+		id SERIAL PRIMARY KEY,
+		total_amount INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	);
+	`
+
+	_, err = db.Exec(createTransactionTestSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create transaction_test table: %w", err)
+	}
+
+	// Create transaction_detail_test table
+	createTransactionDetailTestSQL := `
+	CREATE TABLE IF NOT EXISTS transaction_detail_test (
+		id SERIAL PRIMARY KEY,
+		transaction_id INTEGER NOT NULL REFERENCES transaction_test(id) ON DELETE CASCADE,
+		product_id INTEGER NOT NULL REFERENCES product_test(id),
+		product_name VARCHAR(255) NOT NULL,
+		quantity INTEGER NOT NULL,
+		subtotal INTEGER NOT NULL
+	);
+	`
+
+	_, err = db.Exec(createTransactionDetailTestSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create transaction_detail_test table: %w", err)
+	}
+
+	// Create transaction_test indexes
+	createTransactionTestIndexSQL := `
+	CREATE INDEX IF NOT EXISTS idx_transaction_test_id ON transaction_test(id);
+	CREATE INDEX IF NOT EXISTS idx_transaction_test_created_at ON transaction_test(created_at);
+	CREATE INDEX IF NOT EXISTS idx_transaction_test_created_at_id ON transaction_test(created_at, id);
+	CREATE INDEX IF NOT EXISTS idx_transaction_detail_test_id ON transaction_detail_test(id);
+	CREATE INDEX IF NOT EXISTS idx_transaction_detail_test_transaction_id ON transaction_detail_test(transaction_id);
+	CREATE INDEX IF NOT EXISTS idx_transaction_detail_test_transaction_product_name ON transaction_detail_test(transaction_id, product_name);
+	CREATE INDEX IF NOT EXISTS idx_transaction_detail_test_product_id ON transaction_detail_test(product_id);
+	`
+
+	_, err = db.Exec(createTransactionTestIndexSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create transaction_test indexes: %w", err)
+	}
+
 	return nil
 }
 
 // DropTestTable drops the category_test table (for cleanup in tests)
 func DropTestTable(db *sql.DB) error {
-	_, err := db.Exec("DROP TABLE IF EXISTS product_test; DROP TABLE IF EXISTS category_test;")
+	_, err := db.Exec("DROP TABLE IF EXISTS transaction_detail_test; DROP TABLE IF EXISTS transaction_test; DROP TABLE IF EXISTS product_test; DROP TABLE IF EXISTS category_test;")
 	if err != nil {
 		return fmt.Errorf("failed to drop category_test table: %w", err)
 	}

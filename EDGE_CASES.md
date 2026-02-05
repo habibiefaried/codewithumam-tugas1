@@ -12,6 +12,10 @@
 8. **Non-existent Resources** - GET/PUT/DELETE on missing IDs (404)
 9. **Category-Product Relationship** - JOIN queries return category info
 10. **Concurrent Operations** - Multiple creates, updates, deletes
+11. **Checkout Success** - Transaction creation and stock updates
+12. **Checkout Validation** - Empty items, invalid product_id/quantity
+13. **Checkout Stock & Existence** - Insufficient stock, missing product
+14. **Checkout Rollback** - Atomicity on failure
 
 ## Fixed Edge Cases ✅
 

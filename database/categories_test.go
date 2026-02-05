@@ -47,6 +47,14 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Clean up any existing test data
+	_, err = db.Exec("DELETE FROM transaction_detail_test")
+	if err != nil {
+		t.Fatalf("Failed to clean up transaction_detail_test: %v", err)
+	}
+	_, err = db.Exec("DELETE FROM transaction_test")
+	if err != nil {
+		t.Fatalf("Failed to clean up transaction_test: %v", err)
+	}
 	_, err = db.Exec("DELETE FROM category_test")
 	if err != nil {
 		t.Fatalf("Failed to clean up test data: %v", err)

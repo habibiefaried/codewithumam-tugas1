@@ -54,6 +54,12 @@ func main() {
 	// Initialize products service
 	products := api.NewProducts(db, "product")
 
+	// Initialize checkout service
+	checkout := api.NewCheckout(db, "product", "\"transaction\"", "transaction_detail")
+
+	// Initialize report service
+	report := api.NewReport(db, "\"transaction\"", "transaction_detail")
+
 	// Category routes
 	http.HandleFunc("GET /categories", categories.GetAll)
 	http.HandleFunc("GET /categories/{id}", categories.GetByID)
@@ -67,6 +73,13 @@ func main() {
 	http.HandleFunc("POST /products", products.Create)
 	http.HandleFunc("PUT /products/{id}", products.Update)
 	http.HandleFunc("DELETE /products/{id}", products.Delete)
+
+	// Checkout routes
+	http.HandleFunc("POST /checkout", checkout.Create)
+
+	// Report routes
+	http.HandleFunc("GET /report/hari-ini", report.Today)
+	http.HandleFunc("GET /report", report.Range)
 
 	// Original endpoints
 	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {

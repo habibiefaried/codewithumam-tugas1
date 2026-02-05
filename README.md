@@ -15,6 +15,7 @@ A REST API for managing categories and products with PostgreSQL database backend
 - ✅ Comprehensive unit tests for database queries
 - ✅ RESTful API design with proper separation of concerns
 - ✅ JSON request/response
+- ✅ Checkout endpoint with transactional stock updates
 - ✅ Automated CI/CD tests (30+ test scenarios)
 - ✅ Deployed on Railway
 
@@ -452,6 +453,144 @@ Product not found
 
 ---
 
+## Checkout Endpoint
+
+### Checkout: Create Transaction
+
+**Endpoint:** `POST /checkout`
+
+**Request:**
+```bash
+# Production
+curl -X POST https://codewithumam-tugas-production.up.railway.app/checkout \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {"product_id": 1, "quantity": 2},
+      {"product_id": 2, "quantity": 1}
+    ]
+  }'
+
+# Local
+curl -X POST http://localhost:8080/checkout \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {"product_id": 1, "quantity": 2},
+      {"product_id": 2, "quantity": 1}
+    ]
+  }'
+```
+
+**Response (Success - 201):**
+```json
+{
+  "id": 1,
+  "total_amount": 2897,
+  "created_at": "2026-02-05T08:15:30Z",
+  "details": [
+    {
+      "id": 1,
+      "transaction_id": 1,
+      "product_id": 1,
+      "product_name": "Laptop",
+      "quantity": 2,
+      "subtotal": 2598
+    },
+    {
+      "id": 2,
+      "transaction_id": 1,
+      "product_id": 2,
+      "product_name": "Phone",
+      "quantity": 1,
+      "subtotal": 299
+    }
+  ]
+}
+```
+
+**Response (Insufficient Stock - 400):**
+```
+Insufficient stock
+```
+
+**Response (Product Not Found - 404):**
+```
+Product not found
+```
+
+---
+
+## Report Endpoints
+
+### Report: Hari Ini
+
+**Endpoint:** `GET /report/hari-ini`
+
+**Request:**
+```bash
+# Production
+curl https://codewithumam-tugas-production.up.railway.app/report/hari-ini
+
+# Local
+curl http://localhost:8080/report/hari-ini
+```
+
+**Response (Success - 200):**
+```json
+{
+  "total_revenue": 45000,
+  "total_transaksi": 5,
+  "produk_terlaris": { "nama": "Indomie Goreng", "qty_terjual": 12 }
+}
+```
+
+---
+
+### Report: Range
+
+**Endpoint:** `GET /report?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
+
+**Request:**
+```bash
+# Production
+curl "https://codewithumam-tugas-production.up.railway.app/report?start_date=2026-01-01&end_date=2026-02-01"
+
+# Local
+curl "http://localhost:8080/report?start_date=2026-01-01&end_date=2026-02-01"
+```
+
+**Response (Success - 200):**
+```json
+{
+  "total_revenue": 45000,
+  "total_transaksi": 5,
+  "produk_terlaris": { "nama": "Indomie Goreng", "qty_terjual": 12 }
+}
+```
+
+**Response (Bad Request - 400):**
+```
+start_date and end_date are required
+```
+
+**Response (Bad Request - 400):**
+```
+Invalid start_date
+```
+
+**Response (Bad Request - 400):**
+```
+Invalid end_date
+```
+
+**Response (Bad Request - 400):**
+```
+end_date must be on or after start_date
+```
+
+---
+
 ## Quick Testing Examples
 
 ### Complete Category Workflow (Production)
@@ -600,6 +739,32 @@ This is normal JSON encoding and doesn't affect functionality.
 | category_id             | int    | Yes      | Foreign key to category table      |
 | category_name           | string | Read     | Category name (from join)          |
 | category_description    | string | Read     | Category description (from join)   |
+
+### Transaction
+
+| Field        | Type      | Required | Description                     |
+|--------------|-----------|----------|---------------------------------|
+| id           | int       | Auto     | Unique identifier               |
+| total_amount | int       | Auto     | Total transaction amount        |
+| created_at   | timestamp | Auto     | Checkout timestamp (UTC)        |
+| details      | array     | Read     | List of transaction details     |
+
+### TransactionDetail
+
+| Field           | Type   | Required | Description                         |
+|-----------------|--------|----------|-------------------------------------|
+| id              | int    | Auto     | Unique identifier                   |
+| transaction_id  | int    | Yes      | Foreign key to transaction table    |
+| product_id      | int    | Yes      | Foreign key to product table        |
+| product_name    | string | Yes      | Product name snapshot               |
+| quantity        | int    | Yes      | Quantity purchased                  |
+| subtotal        | int    | Yes      | price × quantity                    |
+
+### CheckoutRequest
+
+| Field | Type  | Required | Description                   |
+|-------|-------|----------|-------------------------------|
+| items | array | Yes      | List of items to purchase     |
 
 ---
 

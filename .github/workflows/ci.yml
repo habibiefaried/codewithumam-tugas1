@@ -44,6 +44,9 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Run unit tests
+        run: go test ./...
+
       - name: Create secrets.yml for tests
         run: |
           cat > secrets.yml << 'EOF'
@@ -229,6 +232,113 @@ jobs:
           echo $BODY
           if [ "$HTTP_CODE" != "200" ]; then
             echo "Expected 200 for product update, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Checkout - success
+          echo -e "\n\n14b. Checkout: successful transaction"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/checkout \
+            -H "Content-Type: application/json" \
+            -d '{"items":[{"product_id":1,"quantity":2},{"product_id":2,"quantity":3}]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "Expected 201 for checkout, got: $HTTP_CODE"
+            exit 1
+          fi
+          if ! echo $BODY | grep -q '"total_amount"'; then
+            echo "Expected total_amount in checkout response"
+            exit 1
+          fi
+
+          # Verify stock decreased for product 1 and 2
+          echo -e "\n\n14c. Verify stock decreased after checkout"
+          RESPONSE=$(curl -s http://localhost:8080/products/1)
+          echo $RESPONSE
+          if ! echo $RESPONSE | grep -q '"stock":3'; then
+            echo "Expected stock 3 for product 1"
+            exit 1
+          fi
+          RESPONSE=$(curl -s http://localhost:8080/products/2)
+          echo $RESPONSE
+          if ! echo $RESPONSE | grep -q '"stock":47'; then
+            echo "Expected stock 47 for product 2"
+            exit 1
+          fi
+
+          # Checkout - insufficient stock
+          echo -e "\n\n14d. Checkout: insufficient stock (should fail)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/checkout \
+            -H "Content-Type: application/json" \
+            -d '{"items":[{"product_id":1,"quantity":999}]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "400" ]; then
+            echo "Expected 400 for insufficient stock, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Checkout - product not found
+          echo -e "\n\n14e. Checkout: product not found (should fail)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/checkout \
+            -H "Content-Type: application/json" \
+            -d '{"items":[{"product_id":9999,"quantity":1}]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "404" ]; then
+            echo "Expected 404 for product not found, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Checkout - empty items
+          echo -e "\n\n14f. Checkout: empty items (should fail)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/checkout \
+            -H "Content-Type: application/json" \
+            -d '{"items":[]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "400" ]; then
+            echo "Expected 400 for empty items, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Checkout - invalid quantity
+          echo -e "\n\n14g. Checkout: invalid quantity (should fail)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/checkout \
+            -H "Content-Type: application/json" \
+            -d '{"items":[{"product_id":1,"quantity":0}]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "400" ]; then
+            echo "Expected 400 for invalid quantity, got: $HTTP_CODE"
+            exit 1
+          fi
+
+          # Report - today
+          echo -e "\n\n14h. Report: today"
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8080/report/hari-ini)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Expected 200 for report today, got: $HTTP_CODE"
+            exit 1
+          fi
+          if ! echo $BODY | grep -q '"total_revenue"'; then
+            echo "Expected total_revenue in report today"
+            exit 1
+          fi
+
+          # Report - range
+          echo -e "\n\n14i. Report: range"
+          TODAY=$(date -u +%F)
+          RESPONSE=$(curl -s -w "\n%{http_code}" "http://localhost:8080/report?start_date=$TODAY&end_date=$TODAY")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo $BODY
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Expected 200 for report range, got: $HTTP_CODE"
+            exit 1
+          fi
+          if ! echo $BODY | grep -q '"produk_terlaris"'; then
+            echo "Expected produk_terlaris in report range"
             exit 1
           fi
 
