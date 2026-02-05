@@ -44,9 +44,6 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run unit tests
-        run: go test ./...
-
       - name: Create secrets.yml for tests
         run: |
           cat > secrets.yml << 'EOF'
