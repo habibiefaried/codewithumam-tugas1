@@ -55,7 +55,7 @@ func main() {
 	products := api.NewProducts(db, "product")
 
 	// Initialize checkout service
-	checkout := api.NewCheckout(db, "product", "\"transaction\"", "transaction_detail")
+	checkout := api.NewCheckout(db, "product", "category", "\"transaction\"", "transaction_detail")
 
 	// Initialize report service
 	report := api.NewReport(db, "\"transaction\"", "transaction_detail")

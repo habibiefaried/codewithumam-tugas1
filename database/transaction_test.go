@@ -26,7 +26,7 @@ func TestCheckoutSuccess(t *testing.T) {
 		{ProductID: prod2.ID, Quantity: 2},
 	}
 
-	trx, err := Checkout(db, "product_test", "transaction_test", "transaction_detail_test", items)
+	trx, err := Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", items)
 	if err != nil {
 		t.Fatalf("Checkout failed: %v", err)
 	}
@@ -45,6 +45,12 @@ func TestCheckoutSuccess(t *testing.T) {
 
 	if len(trx.Details) != 2 {
 		t.Fatalf("Expected 2 details, got %d", len(trx.Details))
+	}
+	if trx.Details[0].UnitPrice != 10 {
+		t.Errorf("Expected unit price 10, got %d", trx.Details[0].UnitPrice)
+	}
+	if trx.Details[0].ProductDesc != "Food category" {
+		t.Errorf("Expected product description 'Food category', got %s", trx.Details[0].ProductDesc)
 	}
 
 	updated1, err := GetProductByID(db, "product_test", "category_test", prod1.ID)
@@ -78,7 +84,7 @@ func TestCheckoutInsufficientStock(t *testing.T) {
 		t.Fatalf("Failed to create product: %v", err)
 	}
 
-	_, err = Checkout(db, "product_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: prod.ID, Quantity: 2}})
+	_, err = Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: prod.ID, Quantity: 2}})
 	if err == nil {
 		t.Fatal("Expected insufficient stock error")
 	}
@@ -91,7 +97,7 @@ func TestCheckoutProductNotFound(t *testing.T) {
 	db := setupProductTestDB(t)
 	defer teardownProductTestDB(t, db)
 
-	_, err := Checkout(db, "product_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: 9999, Quantity: 1}})
+	_, err := Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: 9999, Quantity: 1}})
 	if err == nil {
 		t.Fatal("Expected product not found error")
 	}
@@ -104,7 +110,7 @@ func TestCheckoutInvalidItems(t *testing.T) {
 	db := setupProductTestDB(t)
 	defer teardownProductTestDB(t, db)
 
-	_, err := Checkout(db, "product_test", "transaction_test", "transaction_detail_test", []CheckoutItem{})
+	_, err := Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{})
 	if err == nil {
 		t.Fatal("Expected empty items error")
 	}
@@ -112,7 +118,7 @@ func TestCheckoutInvalidItems(t *testing.T) {
 		t.Fatalf("Expected ErrCheckoutEmptyItems, got %v", err)
 	}
 
-	_, err = Checkout(db, "product_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: 1, Quantity: 0}})
+	_, err = Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: 1, Quantity: 0}})
 	if err == nil {
 		t.Fatal("Expected invalid item error")
 	}
@@ -120,7 +126,7 @@ func TestCheckoutInvalidItems(t *testing.T) {
 		t.Fatalf("Expected ErrInvalidCheckoutItem, got %v", err)
 	}
 
-	_, err = Checkout(db, "product_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: 0, Quantity: 1}})
+	_, err = Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: 0, Quantity: 1}})
 	if err == nil {
 		t.Fatal("Expected invalid item error for product_id 0")
 	}
@@ -128,7 +134,7 @@ func TestCheckoutInvalidItems(t *testing.T) {
 		t.Fatalf("Expected ErrInvalidCheckoutItem, got %v", err)
 	}
 
-	_, err = Checkout(db, "product_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: 1, Quantity: -2}})
+	_, err = Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{{ProductID: 1, Quantity: -2}})
 	if err == nil {
 		t.Fatal("Expected invalid item error for negative quantity")
 	}
@@ -151,7 +157,7 @@ func TestCheckoutRollbackOnInvalidItem(t *testing.T) {
 		t.Fatalf("Failed to create product: %v", err)
 	}
 
-	_, err = Checkout(db, "product_test", "transaction_test", "transaction_detail_test", []CheckoutItem{
+	_, err = Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{
 		{ProductID: prod.ID, Quantity: 2},
 		{ProductID: 0, Quantity: 1},
 	})
@@ -190,7 +196,7 @@ func TestCheckoutRollbackOnInsufficientStockSecondItem(t *testing.T) {
 		t.Fatalf("Failed to create product: %v", err)
 	}
 
-	_, err = Checkout(db, "product_test", "transaction_test", "transaction_detail_test", []CheckoutItem{
+	_, err = Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{
 		{ProductID: prod1.ID, Quantity: 2},
 		{ProductID: prod2.ID, Quantity: 2},
 	})
@@ -232,7 +238,7 @@ func TestCheckoutRollbackOnProductNotFoundSecondItem(t *testing.T) {
 		t.Fatalf("Failed to create product: %v", err)
 	}
 
-	_, err = Checkout(db, "product_test", "transaction_test", "transaction_detail_test", []CheckoutItem{
+	_, err = Checkout(db, "product_test", "category_test", "transaction_test", "transaction_detail_test", []CheckoutItem{
 		{ProductID: prod.ID, Quantity: 2},
 		{ProductID: 9999, Quantity: 1},
 	})

@@ -77,8 +77,10 @@ func Migrate(db *sql.DB) error {
 	CREATE TABLE IF NOT EXISTS transaction_detail (
 		id SERIAL PRIMARY KEY,
 		transaction_id INTEGER NOT NULL REFERENCES "transaction"(id) ON DELETE CASCADE,
-		product_id INTEGER NOT NULL REFERENCES product(id),
+		product_id INTEGER NOT NULL,
 		product_name VARCHAR(255) NOT NULL,
+		product_description TEXT NOT NULL DEFAULT '',
+		unit_price INTEGER NOT NULL DEFAULT 0,
 		quantity INTEGER NOT NULL,
 		subtotal INTEGER NOT NULL
 	);
@@ -87,6 +89,17 @@ func Migrate(db *sql.DB) error {
 	_, err = db.Exec(createTransactionDetailSQL)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction_detail table: %w", err)
+	}
+
+	alterTransactionDetailSQL := `
+	ALTER TABLE transaction_detail DROP CONSTRAINT IF EXISTS transaction_detail_product_id_fkey;
+	ALTER TABLE transaction_detail ADD COLUMN IF NOT EXISTS product_description TEXT NOT NULL DEFAULT '';
+	ALTER TABLE transaction_detail ADD COLUMN IF NOT EXISTS unit_price INTEGER NOT NULL DEFAULT 0;
+	`
+
+	_, err = db.Exec(alterTransactionDetailSQL)
+	if err != nil {
+		return fmt.Errorf("failed to alter transaction_detail table: %w", err)
 	}
 
 	// Create transaction indexes
@@ -180,8 +193,10 @@ func MigrateTest(db *sql.DB) error {
 	CREATE TABLE IF NOT EXISTS transaction_detail_test (
 		id SERIAL PRIMARY KEY,
 		transaction_id INTEGER NOT NULL REFERENCES transaction_test(id) ON DELETE CASCADE,
-		product_id INTEGER NOT NULL REFERENCES product_test(id),
+		product_id INTEGER NOT NULL,
 		product_name VARCHAR(255) NOT NULL,
+		product_description TEXT NOT NULL DEFAULT '',
+		unit_price INTEGER NOT NULL DEFAULT 0,
 		quantity INTEGER NOT NULL,
 		subtotal INTEGER NOT NULL
 	);
@@ -190,6 +205,17 @@ func MigrateTest(db *sql.DB) error {
 	_, err = db.Exec(createTransactionDetailTestSQL)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction_detail_test table: %w", err)
+	}
+
+	alterTransactionDetailTestSQL := `
+	ALTER TABLE transaction_detail_test DROP CONSTRAINT IF EXISTS transaction_detail_test_product_id_fkey;
+	ALTER TABLE transaction_detail_test ADD COLUMN IF NOT EXISTS product_description TEXT NOT NULL DEFAULT '';
+	ALTER TABLE transaction_detail_test ADD COLUMN IF NOT EXISTS unit_price INTEGER NOT NULL DEFAULT 0;
+	`
+
+	_, err = db.Exec(alterTransactionDetailTestSQL)
+	if err != nil {
+		return fmt.Errorf("failed to alter transaction_detail_test table: %w", err)
 	}
 
 	// Create transaction_test indexes

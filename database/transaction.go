@@ -29,6 +29,8 @@ type TransactionDetail struct {
 	TransactionID int    `json:"transaction_id" db:"transaction_id"`
 	ProductID     int    `json:"product_id" db:"product_id"`
 	ProductName   string `json:"product_name" db:"product_name"`
+	ProductDesc   string `json:"product_description" db:"product_description"`
+	UnitPrice     int    `json:"unit_price" db:"unit_price"`
 	Quantity      int    `json:"quantity" db:"quantity"`
 	Subtotal      int    `json:"subtotal" db:"subtotal"`
 }
@@ -47,7 +49,7 @@ type CheckoutItem struct {
 }
 
 // Checkout creates a transaction, updates product stocks, and inserts transaction details atomically.
-func Checkout(db *sql.DB, productTable, transactionTable, transactionDetailTable string, items []CheckoutItem) (Transaction, error) {
+func Checkout(db *sql.DB, productTable, categoryTable, transactionTable, transactionDetailTable string, items []CheckoutItem) (Transaction, error) {
 	if len(items) == 0 {
 		return Transaction{}, ErrCheckoutEmptyItems
 	}
@@ -61,7 +63,7 @@ func Checkout(db *sql.DB, productTable, transactionTable, transactionDetailTable
 		_ = tx.Rollback()
 	}
 
-	getProductQuery := fmt.Sprintf("SELECT id, name, price, stock FROM %s WHERE id = $1 FOR UPDATE", productTable)
+	getProductQuery := fmt.Sprintf("SELECT p.id, p.name, p.price, p.stock, COALESCE(c.description, '') FROM %s p LEFT JOIN %s c ON p.category_id = c.id WHERE p.id = $1 FOR UPDATE", productTable, categoryTable)
 	updateStockQuery := fmt.Sprintf("UPDATE %s SET stock = $1 WHERE id = $2", productTable)
 
 	var details []TransactionDetail
@@ -76,11 +78,12 @@ func Checkout(db *sql.DB, productTable, transactionTable, transactionDetailTable
 		var (
 			productID   int
 			productName string
+			productDesc string
 			price       int
 			stock       int
 		)
 
-		err = tx.QueryRow(getProductQuery, item.ProductID).Scan(&productID, &productName, &price, &stock)
+		err = tx.QueryRow(getProductQuery, item.ProductID).Scan(&productID, &productName, &price, &stock, &productDesc)
 		if err != nil {
 			rollback()
 			if errors.Is(err, sql.ErrNoRows) {
@@ -108,6 +111,8 @@ func Checkout(db *sql.DB, productTable, transactionTable, transactionDetailTable
 		details = append(details, TransactionDetail{
 			ProductID:   productID,
 			ProductName: productName,
+			ProductDesc: productDesc,
+			UnitPrice:   price,
 			Quantity:    item.Quantity,
 			Subtotal:    subtotal,
 		})
@@ -124,11 +129,11 @@ func Checkout(db *sql.DB, productTable, transactionTable, transactionDetailTable
 		return Transaction{}, fmt.Errorf("failed to create transaction: %w", err)
 	}
 
-	insertDetailQuery := fmt.Sprintf("INSERT INTO %s (transaction_id, product_id, product_name, quantity, subtotal) VALUES ($1, $2, $3, $4, $5) RETURNING id", transactionDetailTable)
+	insertDetailQuery := fmt.Sprintf("INSERT INTO %s (transaction_id, product_id, product_name, product_description, unit_price, quantity, subtotal) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id", transactionDetailTable)
 	for i := range transaction.Details {
 		detail := &transaction.Details[i]
 		detail.TransactionID = transaction.ID
-		err = tx.QueryRow(insertDetailQuery, transaction.ID, detail.ProductID, detail.ProductName, detail.Quantity, detail.Subtotal).Scan(&detail.ID)
+		err = tx.QueryRow(insertDetailQuery, transaction.ID, detail.ProductID, detail.ProductName, detail.ProductDesc, detail.UnitPrice, detail.Quantity, detail.Subtotal).Scan(&detail.ID)
 		if err != nil {
 			rollback()
 			return Transaction{}, fmt.Errorf("failed to create transaction detail: %w", err)

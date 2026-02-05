@@ -494,6 +494,8 @@ curl -X POST http://localhost:8080/checkout \
       "transaction_id": 1,
       "product_id": 1,
       "product_name": "Laptop",
+      "product_description": "Electronic devices and gadgets",
+      "unit_price": 1299,
       "quantity": 2,
       "subtotal": 2598
     },
@@ -502,6 +504,8 @@ curl -X POST http://localhost:8080/checkout \
       "transaction_id": 1,
       "product_id": 2,
       "product_name": "Phone",
+      "product_description": "Electronic devices and gadgets",
+      "unit_price": 299,
       "quantity": 1,
       "subtotal": 299
     }
@@ -755,8 +759,10 @@ This is normal JSON encoding and doesn't affect functionality.
 |-----------------|--------|----------|-------------------------------------|
 | id              | int    | Auto     | Unique identifier                   |
 | transaction_id  | int    | Yes      | Foreign key to transaction table    |
-| product_id      | int    | Yes      | Foreign key to product table        |
+| product_id      | int    | Yes      | Product ID snapshot (no FK)         |
 | product_name    | string | Yes      | Product name snapshot               |
+| product_description | string | Yes   | Product description snapshot        |
+| unit_price      | int    | Yes      | Unit price at purchase time         |
 | quantity        | int    | Yes      | Quantity purchased                  |
 | subtotal        | int    | Yes      | price × quantity                    |
 

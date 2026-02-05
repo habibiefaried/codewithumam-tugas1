@@ -339,7 +339,7 @@ jobs:
             exit 1
           fi
 
-          # Delete product
+          # Delete product (should succeed even if referenced in transaction detail)
           echo -e "\n\n15. Delete product ID: 2"
           RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE http://localhost:8080/products/2)
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)

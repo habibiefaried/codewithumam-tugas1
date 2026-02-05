@@ -14,15 +14,17 @@ import (
 type Checkout struct {
 	db                     *sql.DB
 	productTable           string
+	categoryTable          string
 	transactionTable       string
 	transactionDetailTable string
 }
 
 // NewCheckout creates a new checkout service
-func NewCheckout(db *sql.DB, productTable, transactionTable, transactionDetailTable string) *Checkout {
+func NewCheckout(db *sql.DB, productTable, categoryTable, transactionTable, transactionDetailTable string) *Checkout {
 	return &Checkout{
 		db:                     db,
 		productTable:           productTable,
+		categoryTable:          categoryTable,
 		transactionTable:       transactionTable,
 		transactionDetailTable: transactionDetailTable,
 	}
@@ -36,7 +38,7 @@ func (c *Checkout) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transaction, err := database.Checkout(c.db, c.productTable, c.transactionTable, c.transactionDetailTable, req.Items)
+	transaction, err := database.Checkout(c.db, c.productTable, c.categoryTable, c.transactionTable, c.transactionDetailTable, req.Items)
 	if err != nil {
 		switch {
 		case errors.Is(err, database.ErrCheckoutEmptyItems), errors.Is(err, database.ErrInvalidCheckoutItem):

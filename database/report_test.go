@@ -129,7 +129,7 @@ func insertTransactionWithDetails(t *testing.T, db *sql.DB, total int, createdAt
 	}
 
 	for _, d := range details {
-		_, err = db.Exec("INSERT INTO transaction_detail_test (transaction_id, product_id, product_name, quantity, subtotal) VALUES ($1, $2, $3, $4, $5)", trxID, d.ProductID, d.ProductName, d.Quantity, d.Subtotal)
+		_, err = db.Exec("INSERT INTO transaction_detail_test (transaction_id, product_id, product_name, product_description, unit_price, quantity, subtotal) VALUES ($1, $2, $3, $4, $5, $6, $7)", trxID, d.ProductID, d.ProductName, d.ProductDesc, d.UnitPrice, d.Quantity, d.Subtotal)
 		if err != nil {
 			t.Fatalf("Failed to insert transaction_detail_test: %v", err)
 		}
